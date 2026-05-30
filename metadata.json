@@ -1,0 +1,6 @@
+{
+  "name": "AI Job Coach",
+  "description": "AI Personal Coach for Government Job Preparation (BCS)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
