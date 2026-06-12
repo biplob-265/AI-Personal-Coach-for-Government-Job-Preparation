@@ -51,3 +51,23 @@ data class UserAnswerEntity(
     val isCorrect: Boolean,
     val answeredAt: String
 )
+
+@Entity(tableName = "flashcards")
+data class FlashcardEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val front: String,
+    val back: String,
+    val subjectId: String = "gk",
+    val intervalDays: Int = 1,
+    val repetitions: Int = 0,
+    val easinessFactor: Float = 2.5f,
+    val nextReviewTimeMills: Long = System.currentTimeMillis(),
+    val createdAtMills: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "bookmarked_questions")
+data class BookmarkQuestionEntity(
+    @PrimaryKey val questionId: String,
+    val bookmarkedAt: Long = System.currentTimeMillis()
+)
+

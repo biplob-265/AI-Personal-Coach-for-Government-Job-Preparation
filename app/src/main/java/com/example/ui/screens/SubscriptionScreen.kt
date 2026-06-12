@@ -147,7 +147,7 @@ fun SubscriptionScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            CompareRow(feature = "প্রতিদিন MCQ অনুশীলন সীমা", freeVal = "২০ টি MCQ", premiumVal = "আনলিমিটেড ♾️", highlightPremium = true)
+            CompareRow(feature = "প্রতিদিন MCQ অনুশীলন সীমা", freeVal = "২০০ টি কুইজ/MCQ", premiumVal = "আনলিমিটেড ♾️", highlightPremium = true)
             CompareRow(feature = "প্রতিদিন AI মেন্টর মেসেজ", freeVal = "৫ টি বার্তা", premiumVal = "আনলিমিটেড ♾️", highlightPremium = true)
             CompareRow(feature = "AI স্টাডি প্ল্যানার ও উইকলি রুটিন", freeVal = "🔒 বন্ধ", premiumVal = "খোলা ✅", highlightPremium = true)
             CompareRow(feature = "স্মার্ট উইকনেস অ্যানালাইসিস", freeVal = "🔓 আংশিক", premiumVal = "উন্নত ✅", highlightPremium = true)

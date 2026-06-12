@@ -68,6 +68,33 @@ fun MainAppScreen() {
     val isProcessingPremium by model.isProcessingPremium.collectAsState()
     val purchaseSuccessMessage by model.purchaseSuccessEvent.collectAsState()
 
+    val dynamicBcsSuggestions by model.dynamicBcsSuggestions.collectAsState()
+    val isSuggestionsLoading by model.isSuggestionsLoading.collectAsState()
+    val isViewingBcsAssistant by model.isViewingBcsAssistant.collectAsState()
+
+    val isViewingBcsViva by model.isViewingBcsViva.collectAsState()
+    val vivaStage by model.vivaStage.collectAsState()
+    val vivaConfig by model.vivaConfig.collectAsState()
+    val vivaQuestions by model.vivaQuestions.collectAsState()
+    val vivaCurrentIndex by model.vivaCurrentIndex.collectAsState()
+    val isVivaLoading by model.isVivaLoading.collectAsState()
+    val vivaReport by model.vivaReport.collectAsState()
+
+    val isViewingBcsPerformanceDashboard by model.isViewingBcsPerformanceDashboard.collectAsState()
+    val isViewingBcsFlashcards by model.isViewingBcsFlashcards.collectAsState()
+    val flashcardsList by model.flashcards.collectAsState()
+    val lastActiveQuiz by model.lastActiveQuizState.collectAsState()
+    val vivaHistoryList by model.vivaHistoryList.collectAsState()
+    val quizHistoryList by model.quizHistoryList.collectAsState()
+    val plannerHistoryList by model.plannerHistoryList.collectAsState()
+
+    val targetExamName by model.targetExamName.collectAsState()
+    val targetExamDate by model.targetExamDate.collectAsState()
+    val dailyStudyHours by model.dailyStudyHours.collectAsState()
+    val completedTopicIds by model.completedTopicIds.collectAsState()
+    val bookmarkedQuestionIds by model.bookmarkedQuestionIds.collectAsState()
+    val bookmarkedQuestions by model.bookmarkedQuestions.collectAsState()
+
     var activeTabIdx by remember { mutableIntStateOf(0) }
 
     val isPremium = user?.isPremium == true
@@ -78,7 +105,50 @@ fun MainAppScreen() {
             quizState = quizState,
             onSubmitOption = { model.submitAnswer(it) },
             onNextQuestion = { model.nextQuestion() },
-            onExitQuiz = { model.exitQuiz() }
+            onExitQuiz = { model.exitQuiz() },
+            onToggleBookmark = { model.toggleBookmark(it) },
+            bookmarkedQuestionIds = bookmarkedQuestionIds
+        )
+    } else if (isViewingBcsAssistant) {
+        com.example.ui.screens.BcsPreviousAndSuggestionsScreen(
+            isPremium = isPremium,
+            dynamicSuggestions = dynamicBcsSuggestions,
+            isSuggestionsLoading = isSuggestionsLoading,
+            onGenerateSuggestions = { model.generateDynamicBcsSuggestions() },
+            onBack = { model.setViewingBcsAssistant(false) }
+        )
+    } else if (isViewingBcsViva) {
+        com.example.ui.screens.BcsVivaSimulatorScreen(
+            vivaStage = vivaStage,
+            vivaConfig = vivaConfig,
+            vivaQuestions = vivaQuestions,
+            currentIndex = vivaCurrentIndex,
+            isLoading = isVivaLoading,
+            vivaReport = vivaReport,
+            onUpdateConfig = { cadre, subject, district, temperament ->
+                model.updateVivaConfig(cadre, subject, district, temperament)
+            },
+            onStartViva = { model.startVivaSession() },
+            onSubmitResponse = { model.submitVivaAnswer(it) },
+            onRestartViva = { model.restartViva() },
+            onBack = { model.setViewingBcsViva(false) }
+        )
+    } else if (isViewingBcsPerformanceDashboard) {
+        com.example.ui.screens.BcsPerformanceDashboardScreen(
+            vivaHistory = vivaHistoryList,
+            quizHistory = quizHistoryList,
+            plannerHistory = plannerHistoryList,
+            bookmarkedQuestions = bookmarkedQuestions,
+            onToggleBookmark = { model.toggleBookmark(it) },
+            onBack = { model.setViewingBcsPerformanceDashboard(false) }
+        )
+    } else if (isViewingBcsFlashcards) {
+        com.example.ui.screens.BcsFlashcardsScreen(
+            flashcards = flashcardsList,
+            onAddFlashcard = { front, back, subj -> model.addFlashcard(front, back, subj) },
+            onDeleteFlashcard = { model.deleteFlashcard(it) },
+            onReviewFlashcard = { card, rating -> model.reviewFlashcard(card, rating) },
+            onBack = { model.setViewingBcsFlashcards(false) }
         )
     } else {
         Scaffold(
@@ -132,14 +202,27 @@ fun MainAppScreen() {
                         dailyMissionText = dailyMissionText,
                         isMissionLoading = isMissionLoading,
                         onGenerateMission = { model.generateDailyMission() },
-                        onStartQuiz = { model.startQuizSession(it) },
-                        onResetProgress = { model.resetUserProgress() }
+                        onStartQuiz = { isMock, count -> model.startQuizSession(isMock, null, count) },
+                        lastActiveQuiz = lastActiveQuiz,
+                        onResumeLastQuiz = { model.resumeLastQuiz() },
+                        onResetProgress = { model.resetUserProgress() },
+                        onOpenBcsAssistant = { model.setViewingBcsAssistant(true) },
+                        onOpenBcsViva = { model.setViewingBcsViva(true) },
+                        onOpenPerformanceDashboard = { model.setViewingBcsPerformanceDashboard(true) },
+                        onOpenFlashcards = { model.setViewingBcsFlashcards(true) }
                     )
                     1 -> StudyPlannerScreen(
                         isPremium = isPremium,
+                        targetExamName = targetExamName,
+                        targetExamDate = targetExamDate,
+                        dailyStudyHours = dailyStudyHours,
+                        completedTopicIds = completedTopicIds,
                         studyPlanText = planText,
                         isLoading = isPlanLoading,
+                        onSaveTargetConfig = { name, date, hrs -> model.saveTargetExamConfig(name, date, hrs) },
+                        onToggleTopicCompleted = { model.toggleStudyTopicCompleted(it) },
                         onGeneratePlan = { model.generateStudyPlan() },
+                        onStartQuizForTopic = { model.startQuizSession(false, it) },
                         onNavigateToPremium = { activeTabIdx = 3 }
                     )
                     2 -> ChatScreen(

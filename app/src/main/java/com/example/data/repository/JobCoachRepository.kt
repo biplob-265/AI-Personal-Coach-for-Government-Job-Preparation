@@ -9,6 +9,8 @@ import com.example.data.models.SubjectEntity
 import com.example.data.models.TopicEntity
 import com.example.data.models.QuestionEntity
 import com.example.data.models.UserAnswerEntity
+import com.example.data.models.FlashcardEntity
+import com.example.data.models.BookmarkQuestionEntity
 import com.example.data.network.ContentMessage
 import com.example.data.network.GenerateContentRequest
 import com.example.data.network.Part
@@ -27,19 +29,32 @@ class JobCoachRepository(context: Context) {
         context.applicationContext,
         AppDatabase::class.java,
         "ai_job_coach_db"
-    ).build()
+    ).fallbackToDestructiveMigration()
+     .build()
 
     val userDao = db.userDao()
     val subjectDao = db.subjectDao()
     val topicDao = db.topicDao()
     val questionDao = db.questionDao()
     val userAnswerDao = db.userAnswerDao()
+    val flashcardDao = db.flashcardDao()
+    val bookmarkDao = db.bookmarkDao()
 
     val user: Flow<UserEntity?> = userDao.getUser()
     val subjects: Flow<List<SubjectEntity>> = subjectDao.getAllSubjects()
     val topics: Flow<List<TopicEntity>> = topicDao.getAllTopics()
     val questions: Flow<List<QuestionEntity>> = questionDao.getAllQuestions()
     val answers: Flow<List<UserAnswerEntity>> = userAnswerDao.getAllAnswers()
+    val flashcards: Flow<List<FlashcardEntity>> = flashcardDao.getAllFlashcards()
+    val bookmarks: Flow<List<BookmarkQuestionEntity>> = bookmarkDao.getAllBookmarks()
+
+    suspend fun addBookmark(questionId: String) = withContext(Dispatchers.IO) {
+        bookmarkDao.insertBookmark(BookmarkQuestionEntity(questionId))
+    }
+
+    suspend fun removeBookmark(questionId: String) = withContext(Dispatchers.IO) {
+        bookmarkDao.deleteBookmark(questionId)
+    }
 
     // Query to check if database needs seeding, and seed if empty
     suspend fun checkAndSeedDatabase() = withContext(Dispatchers.IO) {
@@ -176,6 +191,40 @@ class JobCoachRepository(context: Context) {
                 )
             )
             questionDao.insertQuestions(listQuestions)
+        }
+
+        val fCount = flashcardDao.getCount()
+        if (fCount == 0) {
+            val defaultFlashcards: List<FlashcardEntity> = listOf(
+                FlashcardEntity(
+                    front = "চর্যাপদ কোন শতকে আবিষ্কৃত হয় এবং কে এটি আবিষ্কার করেন?",
+                    back = "১৯০৭ সালে নেপালের রাজদরবারের গ্রন্থাগার থেকে পন্ডিত হরপ্রসাদ শাস্ত্রী আবিষ্কার করেন।",
+                    subjectId = "bangla"
+                ),
+                FlashcardEntity(
+                    front = "বাংলাদেশের সংবিধান গণপ্রজাতন্ত্রী বাংলাদেশ সরকার কর্তৃক কবে গৃহীত হয় এবং কবে থেকে কার্যকর হয়?",
+                    back = "গৃহীত হয় ৪ নভেম্বর ১৯৭২; কার্যকর হয় ১৬ ডিসেম্বর ১৯৭২ (বিজয় দিবস থেকে)।",
+                    subjectId = "gk"
+                ),
+                FlashcardEntity(
+                    front = "ইংরেজি সাহিত্যে 'Father of English Poetry' কাকে বলা হয়?",
+                    back = "Geoffrey Chaucer (জিওফ্রে চসার)-কে বলা হয়। তাঁর বিখ্যাত সৃষ্টি The Canterbury Tales।",
+                    subjectId = "english"
+                ),
+                FlashcardEntity(
+                    front = "পদ্মা সেতু প্রকল্পের নকশা প্রণয়ন করে কোন মার্কিন উপদেষ্টা প্রতিষ্ঠান?",
+                    back = "AECOM (এইকম) নামক বিশ্বখ্যাত মার্কিন উপদেষ্টা প্রতিষ্ঠান।",
+                    subjectId = "gk"
+                ),
+                FlashcardEntity(
+                    front = "বাংলা গদ্যের জনক কে এবং তাঁর বিখ্যাত প্রথম প্রকাশিত সার্থক অনুদিত গ্রন্থটি কী?",
+                    back = "ঈশ্বরচন্দ্র বিদ্যাসাগর; তাঁর প্রথম সার্থক অনুকৃতি গ্রন্থ 'বেতাল পঞ্চবিংশতি' (১৮৪৭)।",
+                    subjectId = "bangla"
+                )
+            )
+            for (card in defaultFlashcards) {
+                flashcardDao.insertFlashcard(card)
+            }
         }
     }
 

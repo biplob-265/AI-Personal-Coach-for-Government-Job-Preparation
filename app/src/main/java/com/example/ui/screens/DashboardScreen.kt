@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -41,6 +43,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.models.UserEntity
 import com.example.ui.viewmodel.TopicStats
+import com.example.ui.viewmodel.QuizState
 
 @Composable
 fun DashboardScreen(
@@ -60,10 +69,20 @@ fun DashboardScreen(
     dailyMissionText: String?,
     isMissionLoading: Boolean,
     onGenerateMission: () -> Unit,
-    onStartQuiz: (Boolean) -> Unit, // Boolean represents isMockTest
+    onStartQuiz: (Boolean, Int) -> Unit, // Boolean represents isMockTest, Int is question count
+    lastActiveQuiz: QuizState.Active? = null,
+    onResumeLastQuiz: () -> Unit = {},
     onResetProgress: () -> Unit,
+    onOpenBcsAssistant: () -> Unit,
+    onOpenBcsViva: () -> Unit,
+    onOpenPerformanceDashboard: () -> Unit,
+    onOpenFlashcards: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showQuizSetupDialog by remember { mutableStateOf(false) }
+    var selectedIsMockTest by remember { mutableStateOf(false) }
+    var selectedQuestionCount by remember { mutableIntStateOf(10) }
+
     // Generate initial mission on launch if empty
     LaunchedEffect(Unit) {
         if (dailyMissionText == null && !isMissionLoading) {
@@ -165,7 +184,11 @@ fun DashboardScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Button(
-                onClick = { onStartQuiz(false) },
+                onClick = { 
+                    selectedIsMockTest = false
+                    selectedQuestionCount = 10
+                    showQuizSetupDialog = true
+                },
                 modifier = Modifier
                     .weight(1.0f)
                     .height(44.dp)
@@ -181,7 +204,11 @@ fun DashboardScreen(
             Spacer(modifier = Modifier.width(12.dp))
 
             Button(
-                onClick = { onStartQuiz(true) },
+                onClick = {
+                    selectedIsMockTest = true
+                    selectedQuestionCount = 20
+                    showQuizSetupDialog = true
+                },
                 modifier = Modifier
                     .weight(1.0f)
                     .height(44.dp)
@@ -195,7 +222,196 @@ fun DashboardScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        if (lastActiveQuiz != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("resume_last_quiz_card")
+                    .clickable { onResumeLastQuiz() },
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.95f)
+                ),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Resume",
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "সর্বশেষ কুইজ পুনরায় শুরু করুন",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "প্রশ্ন ${lastActiveQuiz.currentIndex + 1} / ${lastActiveQuiz.questions.size} (অপশন সিলেক্ট করে পুনরায় সেশনটি চালু রাখুন)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Button(
+                        onClick = { onResumeLastQuiz() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .height(32.dp)
+                            .testTag("resume_last_quiz_button"),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "শুরু করুন",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiary
+                        )
+                    }
+                }
+            }
+        }
+
+        // New interactive card for Past BCS Questions & AI Suggestions
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .clickable { onOpenBcsAssistant() }
+                .testTag("open_bcs_assistant_card"),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1.0f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(24.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("📚", fontSize = 22.sp)
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            text = "বিগত বিসিএস প্রশ্ন ও এআই সাজেশন",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "১০ম-৪৫তম প্রিলিমিনারি প্রশ্ন ব্যাংক ও স্পেশাল ভবিষ্যৎবাণী",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = "প্রবেশ করুন",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        // Beautiful card launcher for BCS voice-based AI Viva simulator
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+                .clickable { onOpenBcsViva() }
+                .testTag("open_bcs_viva_card"),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f)),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1.0f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(24.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🎤", fontSize = 22.sp)
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            text = "বিসিএস মক ভাইভা বোর্ড (ভয়েস-ভিত্তিক)",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "বাস্তব কথোপকথন, জেমিনী এআই ভাইভা বোর্ড ও মূল্যায়ন",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = "প্রবেশ করুন",
+                    tint = MaterialTheme.colorScheme.tertiary
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Performance metrics section
         Text(
@@ -204,6 +420,102 @@ fun DashboardScreen(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Interative detailed 30-Day performance dashboard entry button
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .clickable { onOpenPerformanceDashboard() }
+                .testTag("open_performance_dashboard_banner"),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("📊", fontSize = 20.sp)
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "৩০ দিনের পারফরম্যান্স ড্যাশবোর্ড",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "মক ভাইভা স্কোর, কুইজ এবং রুটিন চার্ট প্রগতি দেখুন",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                    )
+                }
+                Text(
+                    text = "দেখুন ➔",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Interactive BCS Flashcards study entry button with spaced repetition indicators
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .clickable { onOpenFlashcards() }
+                .testTag("open_bcs_flashcards_banner"),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f))
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🗂️", fontSize = 20.sp)
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "বিসিএস ডিজিটাল ফ্ল্যাশকার্ডস",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Text(
+                        text = "SM-২ বৈজ্ঞানিক পদ্ধতিতে কঠিন বিষয় ও শব্দাবলী আয়ত্ত করুন",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                    )
+                }
+                Text(
+                    text = "খুলুন ➔",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -333,7 +645,11 @@ fun DashboardScreen(
 
                 // Start Practice Quick Button under AI suggestions
                 Button(
-                    onClick = { onStartQuiz(false) },
+                    onClick = { 
+                        selectedIsMockTest = false
+                        selectedQuestionCount = 10
+                        showQuizSetupDialog = true
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
@@ -395,6 +711,138 @@ fun DashboardScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Text("প্রস্তুতি এবং প্র্যাকটিস হিস্ট্রি রিসেট করুন", fontSize = 12.sp)
+        }
+    }
+
+    if (showQuizSetupDialog) {
+        Dialog(onDismissRequest = { showQuizSetupDialog = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .testTag("quiz_setup_dialog"),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(8.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "🎯 কুইজ সেটিংস",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    Text(
+                        text = "কতটি বিসিএস প্রশ্নের অনুশীলন করতে চান? প্রতিদিন ২০০টি কুইজ সম্পন্ন করে শতভাগ কার্যকর প্রস্তুতি নিন!",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    // Question Count Pills
+                    val counts = listOf(10, 25, 50, 100, 200)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        counts.forEach { count ->
+                            val isSelected = selectedQuestionCount == count
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.primaryContainer 
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                    )
+                                    .border(
+                                        1.dp, 
+                                        if (isSelected) MaterialTheme.colorScheme.primary 
+                                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable { selectedQuestionCount = count }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = when(count) {
+                                            10 -> "⚡ কুইক রিভিশন"
+                                            25 -> "📚 স্ট্যান্ডার্ড"
+                                            50 -> "🔥 গতি পরীক্ষা"
+                                            100 -> "🏆 অ্যাডভান্সড মোড"
+                                            else -> "🚀 ম্যারাথন ২০০ চ্যালেঞ্জ"
+                                        },
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primary 
+                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
+                                            CircleShape
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "$count টি",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 11.sp,
+                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showQuizSetupDialog = false },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("বাতিল", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                        
+                        Button(
+                            onClick = {
+                                onStartQuiz(selectedIsMockTest, selectedQuestionCount)
+                                showQuizSetupDialog = false
+                            },
+                            modifier = Modifier.weight(1.5f),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text(
+                                text = "শুরু করুন ➔",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

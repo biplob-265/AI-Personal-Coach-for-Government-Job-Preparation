@@ -11,6 +11,8 @@ import com.example.data.models.SubjectEntity
 import com.example.data.models.TopicEntity
 import com.example.data.models.QuestionEntity
 import com.example.data.models.UserAnswerEntity
+import com.example.data.models.FlashcardEntity
+import com.example.data.models.BookmarkQuestionEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -97,15 +99,50 @@ interface UserAnswerDao {
     suspend fun clearAllAnswers()
 }
 
+@Dao
+interface FlashcardDao {
+    @Query("SELECT * FROM flashcards ORDER BY id DESC")
+    fun getAllFlashcards(): Flow<List<FlashcardEntity>>
+
+    @Query("SELECT * FROM flashcards WHERE nextReviewTimeMills <= :currentTime ORDER BY nextReviewTimeMills ASC")
+    fun getDueFlashcards(currentTime: Long): Flow<List<FlashcardEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFlashcard(flashcard: FlashcardEntity)
+
+    @Query("DELETE FROM flashcards WHERE id = :id")
+    suspend fun deleteFlashcardById(id: Int)
+
+    @Query("SELECT COUNT(*) FROM flashcards")
+    suspend fun getCount(): Int
+
+    @Query("SELECT COUNT(*) FROM flashcards WHERE nextReviewTimeMills <= :currentTime")
+    suspend fun getDueCount(currentTime: Long): Int
+}
+
+@Dao
+interface BookmarkDao {
+    @Query("SELECT * FROM bookmarked_questions ORDER BY bookmarkedAt DESC")
+    fun getAllBookmarks(): Flow<List<BookmarkQuestionEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBookmark(bookmark: BookmarkQuestionEntity)
+
+    @Query("DELETE FROM bookmarked_questions WHERE questionId = :questionId")
+    suspend fun deleteBookmark(questionId: String)
+}
+
 @Database(
     entities = [
         UserEntity::class,
         SubjectEntity::class,
         TopicEntity::class,
         QuestionEntity::class,
-        UserAnswerEntity::class
+        UserAnswerEntity::class,
+        FlashcardEntity::class,
+        BookmarkQuestionEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -114,4 +151,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun topicDao(): TopicDao
     abstract fun questionDao(): QuestionDao
     abstract fun userAnswerDao(): UserAnswerDao
+    abstract fun flashcardDao(): FlashcardDao
+    abstract fun bookmarkDao(): BookmarkDao
 }
+
